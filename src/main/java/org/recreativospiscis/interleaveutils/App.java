@@ -1,7 +1,9 @@
 package org.recreativospiscis.interleaveutils;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
@@ -19,16 +21,16 @@ public class App {
 				byte[] file2 = readFile(args[2]);
 				byte[] interleavedFile = interleaveFiles(file1, file2);
 				String outputFilename = args.length == 4 ? args[3] : "interleavedFile.bin";
-				writeFile(outputFilename, interleavedFile);
-				System.out.println("Successfully interleave input files into file: " + outputFilename);
+				String outFile = writeFile(outputFilename, interleavedFile);
+				System.out.println("Successfully interleave input files into file:\n\t" + outFile);
 				break;
 			case "deinterleave":
 				byte[] file = readFile(args[1]);
 				byte[][] deinterleavedFiles = deinterleaveFile(file);
-				writeFile("0_" + args[1], deinterleavedFiles[0]);
-				writeFile("1_" + args[1], deinterleavedFiles[1]);
-				System.out.println("Successfully deinterleave input file into files: " + "0_" + args[1] + " and " + "1_"
-						+ args[1]);
+				String outFile1 = writeFile(args[1], deinterleavedFiles[0], "0_");
+				String outFile2 = writeFile(args[1], deinterleavedFiles[1], "1_");
+				System.out.println(
+						"Successfully deinterleave input file into files:\n\t" + outFile1 + "\n\t\tand\n\t" + outFile2);
 				break;
 			default:
 				break;
@@ -47,11 +49,20 @@ public class App {
 		return Files.readAllBytes(Paths.get(fileName));
 	}
 
-	private static void writeFile(String fileName, byte[] content) throws IOException {
-		if (Files.exists(Paths.get(fileName))) {
-			throw new IOException("Output file still exist, do not overwrite it: " + fileName);
+	private static String writeFile(String fileName, byte[] content) throws IOException {
+		return writeFile(fileName, content, null);
+	}
+
+	private static String writeFile(String fileName, byte[] content, String prefix) throws IOException {
+		Path path = Paths.get(fileName);
+		if (prefix != null) {
+			path = Paths.get(path.subpath(0, path.getNameCount() - 1).toString()
+					+ FileSystems.getDefault().getSeparator() + prefix + path.getFileName());
 		}
-		Files.write(Paths.get(fileName), content);
+		if (Files.exists(path)) {
+			throw new IOException("Output file still exist, do not overwrite it: " + path.getFileName());
+		}
+		return Files.write(path, content).normalize().toAbsolutePath().toString();
 	}
 
 	private static byte[] interleaveFiles(byte[] file1, byte[] file2) throws Exception {
